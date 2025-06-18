@@ -12,6 +12,8 @@ import CropManagement from '@/components/modules/CropManagement';
 import InventoryModule from '@/components/modules/InventoryModule';
 import ReportsModule from '@/components/modules/ReportsModule';
 import SustainabilityModule from '@/components/modules/SustainabilityModule';
+import ZarcAnalysis from '@/components/modules/ZarcAnalysis';
+
 
 const AppContent = () => {
   const { isAuthenticated } = useAuth();
@@ -29,10 +31,12 @@ const AppContent = () => {
         return <PropertiesModule />;
       case 'climate':
         return <ClimateAnalysis />;
-      case 'plantation':
+      case 'monitoring':
         return <PlantationAnalysis />;
       case 'crops':
         return <CropManagement />;
+      case 'zarc':
+        return <ZarcAnalysis />;
       case 'inventory':
         return <InventoryModule />;
       case 'reports':

@@ -9,7 +9,8 @@ import {
   Users,
   Leaf,
   LogOut,
-  FileText
+  FileText,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -53,10 +54,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeModule, setActiveModule }) => {
       description: 'IA Preditiva'
     },
     {
-      id: 'plantation',
-      title: 'Análise de Plantação',
-      icon: Search,
-      description: 'IA por Imagens'
+      id: 'monitoring', // ID alterado
+      title: 'Monitoramento (SATVeg)', // Título alterado
+      icon: Search, // Ícone mantido
+      description: 'Análise de Safras' // Descrição alterada
+    },
+    {
+      id: 'zarc',
+      title: 'Zoneamento (ZARC)',
+      icon: ShieldCheck,
+      description: 'Melhor Época de Plantio'
     },
     {
       id: 'reports',

@@ -1,51 +1,72 @@
-
 import React, { useState } from 'react';
-import { Cloud, CloudRain, Sun, Wind, Thermometer, Droplets } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Cloud, Wind, Thermometer, Droplets, Layers } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+
+// Simulando a resposta da API para uma variável, como descrito no PDF da ClimAPI 
+const mockApiCall = (variableName: string) => {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      let values: number[] = [];
+      if (variableName === 'tmax2m') values = [28, 30, 25, 22, 26, 29, 31];
+      if (variableName === 'rh2m') values = [65, 70, 80, 85, 75, 60, 55];
+      if (variableName === 'apcpsfc') values = [0, 2, 15, 20, 10, 0, 0];
+      if (variableName === 'soill0_10cm') values = [0.25, 0.24, 0.35, 0.40, 0.32, 0.28, 0.22];
+      
+      const response = values.map((v, i) => ({ horas: (i + 1) * 24, valor: v }));
+      resolve(response);
+    }, 500 + Math.random() * 500);
+  });
+};
 
 const ClimateAnalysis = () => {
-  const [selectedLocation, setSelectedLocation] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState('Ribeirão Preto');
   const [weatherData, setWeatherData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [forecastData, setForecastData] = useState<any[]>([]);
 
-  // Dados simulados para demonstração
-  const forecastData = [
-    { day: 'Hoje', temp: 28, humidity: 65, rain: 0 },
-    { day: 'Amanhã', temp: 30, humidity: 70, rain: 5 },
-    { day: 'Quinta', temp: 25, humidity: 80, rain: 15 },
-    { day: 'Sexta', temp: 22, humidity: 85, rain: 20 },
-    { day: 'Sábado', temp: 26, humidity: 75, rain: 10 },
-    { day: 'Domingo', temp: 29, humidity: 60, rain: 0 },
-    { day: 'Segunda', temp: 31, humidity: 55, rain: 0 }
-  ];
-
-  const handleLocationSubmit = (e: React.FormEvent) => {
+  const handleLocationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLocation) return;
 
     setLoading(true);
     
-    // Simular chamada de API
-    setTimeout(() => {
-      setWeatherData({
-        location: selectedLocation,
-        current: {
-          temperature: 28,
-          humidity: 65,
-          windSpeed: 12,
-          condition: 'Parcialmente nublado'
-        },
-        alerts: [
-          {
-            type: 'warning',
-            title: 'Alerta de Chuva',
-            message: 'Previsão de chuvas intensas nos próximos 3 dias',
-            recommendation: 'Considere proteção das culturas expostas'
-          }
-        ]
-      });
-      setLoading(false);
-    }, 1000);
+    // Simula múltiplas chamadas, uma para cada variável, como faríamos com a ClimAPI
+    const variablesToFetch = ['tmax2m', 'rh2m', 'apcpsfc', 'soill0_10cm'];
+    const promises = variablesToFetch.map(v => mockApiCall(v));
+    
+    const [tempData, humidityData, rainData, soilData] = await Promise.all(promises);
+
+    // Processa e combina os dados recebidos das várias "chamadas"
+    const combinedData = (tempData as any[]).map((tempPoint, index) => ({
+      day: ['Hoje', 'Amanhã', 'Quinta', 'Sexta', 'Sábado', 'Domingo', 'Segunda'][index],
+      temp: tempPoint.valor,
+      humidity: (humidityData as any[])[index].valor,
+      rain: (rainData as any[])[index].valor,
+      soil_moisture: ((soilData as any[])[index].valor * 100).toFixed(0), // Convertendo para %
+    }));
+
+    setForecastData(combinedData);
+
+    setWeatherData({
+      location: selectedLocation,
+      current: {
+        temperature: combinedData[0].temp,
+        humidity: combinedData[0].humidity,
+        windSpeed: 12, // Valor estático, pois não simulamos a chamada para vento
+        condition: 'Parcialmente nublado'
+      },
+      soil: {
+        moisture: combinedData[0].soil_moisture
+      },
+      alerts: [
+        {
+          type: 'warning',
+          title: 'Alerta de Baixa Umidade do Solo',
+          message: `Umidade do solo atingindo níveis baixos. Considere irrigação em 48h se não houver chuva.`,
+        }
+      ]
+    });
+    setLoading(false);
   };
 
   return (
@@ -63,7 +84,7 @@ const ClimateAnalysis = () => {
             type="text"
             value={selectedLocation}
             onChange={(e) => setSelectedLocation(e.target.value)}
-            placeholder="Digite o nome da cidade ou coordenadas"
+            placeholder="Digite Lat/Lon ou Cidade. Ex: -21.17, -47.81"
             className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
             required
           />
@@ -80,25 +101,31 @@ const ClimateAnalysis = () => {
       {!weatherData ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <Cloud className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Análise Climática com IA</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Análise Climática Detalhada</h3>
           <p className="text-gray-600 mb-4">
-            Digite uma localização para receber previsões climáticas detalhadas e recomendações personalizadas para sua propriedade.
+            Utilize dados da ClimAPI para receber previsões e insights para sua propriedade.
           </p>
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Condições Atuais */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Condições Atuais - Adicionado Card de Umidade do Solo */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
               <Thermometer className="w-8 h-8 text-red-500 mx-auto mb-3" />
               <div className="text-2xl font-bold text-gray-900">{weatherData.current.temperature}°C</div>
-              <div className="text-sm text-gray-600">Temperatura</div>
+              <div className="text-sm text-gray-600">Temperatura do Ar</div>
             </div>
             
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
               <Droplets className="w-8 h-8 text-blue-500 mx-auto mb-3" />
               <div className="text-2xl font-bold text-gray-900">{weatherData.current.humidity}%</div>
-              <div className="text-sm text-gray-600">Umidade</div>
+              <div className="text-sm text-gray-600">Umidade do Ar</div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
+              <Layers className="w-8 h-8 text-yellow-600 mx-auto mb-3" />
+              <div className="text-2xl font-bold text-gray-900">{weatherData.soil.moisture}%</div>
+              <div className="text-sm text-gray-600">Umidade do Solo (0-10cm)</div>
             </div>
             
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
@@ -106,15 +133,9 @@ const ClimateAnalysis = () => {
               <div className="text-2xl font-bold text-gray-900">{weatherData.current.windSpeed} km/h</div>
               <div className="text-sm text-gray-600">Vento</div>
             </div>
-            
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
-              <Sun className="w-8 h-8 text-yellow-500 mx-auto mb-3" />
-              <div className="text-lg font-bold text-gray-900">{weatherData.current.condition}</div>
-              <div className="text-sm text-gray-600">Condição</div>
-            </div>
           </div>
 
-          {/* Previsão de 7 Dias */}
+          {/* Previsão de 7 Dias com Gráfico Atualizado */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Previsão para 7 Dias</h3>
             
@@ -123,78 +144,29 @@ const ClimateAnalysis = () => {
                 <LineChart data={forecastData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="day" />
-                  <YAxis yAxisId="temp" orientation="left" />
-                  <YAxis yAxisId="rain" orientation="right" />
-                  <Tooltip />
-                  <Line 
-                    yAxisId="temp"
-                    type="monotone" 
-                    dataKey="temp" 
-                    stroke="#EF4444" 
-                    strokeWidth={2} 
-                    name="Temperatura (°C)" 
-                  />
-                  <Line 
-                    yAxisId="temp"
-                    type="monotone" 
-                    dataKey="humidity" 
-                    stroke="#3B82F6" 
-                    strokeWidth={2} 
-                    name="Umidade (%)" 
-                  />
-                  <Line 
-                    yAxisId="rain"
-                    type="monotone" 
-                    dataKey="rain" 
-                    stroke="#10B981" 
-                    strokeWidth={2} 
-                    name="Chuva (mm)" 
-                  />
+                  <YAxis yAxisId="left" orientation="left" unit="°C" />
+                  <YAxis yAxisId="right" orientation="right" unit="mm" />
+                  <Tooltip formatter={(value, name) => [`${value}${name === 'Chuva (mm)' ? 'mm' : '%'}`, name]} />
+                  <Legend />
+                  <Line yAxisId="left" type="monotone" dataKey="temp" stroke="#EF4444" strokeWidth={2} name="Temperatura" unit="°C" />
+                  <Line yAxisId="left" type="monotone" dataKey="humidity" stroke="#3B82F6" strokeWidth={2} name="Umidade Ar" unit="%" />
+                  <Line yAxisId="left" type="monotone" dataKey="soil_moisture" stroke="#F59E0B" strokeWidth={2} name="Umidade Solo" unit="%" />
+                  <Line yAxisId="right" type="monotone" dataKey="rain" stroke="#10B981" strokeWidth={2} name="Chuva (mm)" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Alertas e Recomendações */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Alertas Climáticos</h3>
-              
-              <div className="space-y-3">
-                {weatherData.alerts.map((alert: any, index: number) => (
-                  <div key={index} className="p-3 bg-yellow-50 border-l-4 border-l-yellow-400 rounded-r-lg">
-                    <div className="font-medium text-yellow-800">{alert.title}</div>
-                    <div className="text-sm text-yellow-700">{alert.message}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recomendações IA</h3>
-              
-              <div className="space-y-3">
-                {weatherData.alerts.map((alert: any, index: number) => (
-                  <div key={index} className="p-3 bg-green-50 border-l-4 border-l-green-400 rounded-r-lg">
-                    <div className="font-medium text-green-800">Ação Recomendada</div>
-                    <div className="text-sm text-green-700">{alert.recommendation}</div>
-                  </div>
-                ))}
-                
-                <div className="p-3 bg-blue-50 border-l-4 border-l-blue-400 rounded-r-lg">
-                  <div className="font-medium text-blue-800">Irrigação</div>
-                  <div className="text-sm text-blue-700">
-                    Com base na previsão de chuva, reduza a irrigação nos próximos 3 dias
-                  </div>
+          {/* Alertas Climáticos */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Alertas e Insights</h3>
+            <div className="space-y-3">
+              {weatherData.alerts.map((alert: any, index: number) => (
+                <div key={index} className="p-3 bg-yellow-50 border-l-4 border-l-yellow-400 rounded-r-lg">
+                  <div className="font-medium text-yellow-800">{alert.title}</div>
+                  <div className="text-sm text-yellow-700">{alert.message}</div>
                 </div>
-                
-                <div className="p-3 bg-purple-50 border-l-4 border-l-purple-400 rounded-r-lg">
-                  <div className="font-medium text-purple-800">Aplicação de Defensivos</div>
-                  <div className="text-sm text-purple-700">
-                    Janela ideal para aplicação: hoje até às 16h, antes da frente fria
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
